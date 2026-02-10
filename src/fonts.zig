@@ -15,7 +15,7 @@ var handle_18: i32 = -1;
 var handle_24: i32 = -1;
 var handle_36: i32 = -1;
 
-pub fn ensure_loaded() Error!void {
+pub fn ensureLoaded() Error!void {
     if (loaded) return;
 
     handle_18 = try display.vlw.register(assets.font_montserrat_medium_18_vlw);
@@ -26,7 +26,7 @@ pub fn ensure_loaded() Error!void {
 }
 
 pub fn use(font: Font) Error!void {
-    try ensure_loaded();
+    try ensureLoaded();
     switch (font) {
         .Montserrat18 => try display.vlw.use(handle_18),
         .Montserrat24 => try display.vlw.use(handle_24),

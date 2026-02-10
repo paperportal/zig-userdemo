@@ -27,10 +27,10 @@ const State = enum {
     ScanningResult,
 };
 
-fn draw_scan_icon() Error!void {
-    try display.epd.set_mode(display.epd.QUALITY);
-    try display.image.draw_png(kScanIconX, kScanIconY, assets.img_icon_wifi_scan_png);
-    try display.update_rect(kScanIconX, kScanIconY, kScanIconW, kScanIconH);
+fn drawScanIcon() Error!void {
+    try display.epd.setMode(display.epd.QUALITY);
+    try display.image.drawPng(kScanIconX, kScanIconY, assets.img_icon_wifi_scan_png);
+    try display.updateRect(kScanIconX, kScanIconY, kScanIconW, kScanIconH);
 }
 
 pub const AppWifi = struct {
@@ -38,45 +38,45 @@ pub const AppWifi = struct {
     time_count_ms: i32 = 0,
     wifi_started_scanning: bool = false,
 
-    pub fn is_wifi_start_scanning(self: *const AppWifi) bool {
+    pub fn isWifiStartScanning(self: *const AppWifi) bool {
         return self.wifi_started_scanning;
     }
 
-    pub fn on_create(_: *AppWifi) Error!void {
-        try draw_scan_icon();
+    pub fn onCreate(_: *AppWifi) Error!void {
+        try drawScanIcon();
     }
 
     pub fn update(self: *AppWifi, now_ms: i32, refresh: bool, tap: ?Tap) Error!void {
         switch (self.state) {
-            .Idle => try self.handle_state_idle(refresh, tap),
-            .FirstScan => try self.handle_state_first_scan(now_ms, refresh),
-            .ScanningResult => try self.handle_state_scanning_result(now_ms, refresh),
+            .Idle => try self.handleStateIdle(refresh, tap),
+            .FirstScan => try self.handleStateFirstScan(now_ms, refresh),
+            .ScanningResult => try self.handleStateScanningResult(now_ms, refresh),
         }
     }
 
-    fn handle_state_idle(self: *AppWifi, refresh: bool, tap: ?Tap) Error!void {
+    fn handleStateIdle(self: *AppWifi, refresh: bool, tap: ?Tap) Error!void {
         if (refresh) {
-            try draw_scan_icon();
+            try drawScanIcon();
         }
 
         if (tap) |t| {
-            if (!kScanButton.contains_click(t.x, t.y)) return;
+            if (!kScanButton.containsClick(t.x, t.y)) return;
 
             _ = speaker.tone(4000.0, 100) catch {};
-            _ = net.wifi_scan_start() catch {};
+            _ = net.wifiScanStart() catch {};
 
-            try display.epd.set_mode(display.epd.QUALITY);
-            try display.fill_rect(kScanIconX, kScanIconY, kScanIconW, kScanIconH, display.colors.WHITE);
-            try display.update_rect(kScanIconX, kScanIconY, kScanIconW, kScanIconH);
+            try display.epd.setMode(display.epd.QUALITY);
+            try display.fillRect(kScanIconX, kScanIconY, kScanIconW, kScanIconH, display.colors.WHITE);
+            try display.updateRect(kScanIconX, kScanIconY, kScanIconW, kScanIconH);
 
             self.state = .FirstScan;
         }
     }
 
-    fn handle_state_first_scan(self: *AppWifi, now_ms: i32, refresh: bool) Error!void {
+    fn handleStateFirstScan(self: *AppWifi, now_ms: i32, refresh: bool) Error!void {
         if ((now_ms - self.time_count_ms) <= 1000 and !refresh) return;
 
-        const scanning = net.wifi_scan_is_running();
+        const scanning = net.wifiScanIsRunning();
         if (!scanning) {
             self.state = .ScanningResult;
             self.wifi_started_scanning = true;
@@ -84,55 +84,55 @@ pub const AppWifi = struct {
             return;
         }
 
-        try display.epd.set_mode(display.epd.TEXT);
-        try display.text.set_datum(.middle_center);
-        try display.text.set_color(display.colors.BLACK, null);
+        try display.epd.setMode(display.epd.TEXT);
+        try display.text.setDatum(.middle_center);
+        try display.text.setColor(display.colors.BLACK, null);
         try fonts.use(.Montserrat24);
         try display.text.draw("SCANNING...", 644, 312);
 
-        try display.update_rect(kScanIconX, kScanIconY, kScanIconW, kScanIconH);
+        try display.updateRect(kScanIconX, kScanIconY, kScanIconW, kScanIconH);
 
         self.time_count_ms = now_ms;
     }
 
-    fn handle_state_scanning_result(self: *AppWifi, now_ms: i32, refresh: bool) Error!void {
+    fn handleStateScanningResult(self: *AppWifi, now_ms: i32, refresh: bool) Error!void {
         if ((now_ms - self.time_count_ms) <= 5000 and !refresh) return;
 
-        const best = net.wifi_scan_get_best() catch net.WifiRecord{
+        const best = net.wifiScanGetBest() catch net.WifiRecord{
             .rssi = -100,
             .ssid = [_]u8{0} ** 33,
         };
 
-        const count_i32 = net.wifi_scan_get_count() catch 0;
+        const count_i32 = net.wifiScanGetCount() catch 0;
         const count: usize = if (count_i32 <= 0) 0 else @intCast(count_i32);
 
-        try display.epd.set_mode(display.epd.QUALITY);
+        try display.epd.setMode(display.epd.QUALITY);
         try fonts.use(.Montserrat18);
-        try display.text.set_datum(.middle_left);
+        try display.text.setDatum(.middle_left);
 
         // Clear panel area.
-        try display.fill_rect(kResultRect.x, kResultRect.y, kResultRect.w, kResultRect.h, display.colors.WHITE);
+        try display.fillRect(kResultRect.x, kResultRect.y, kResultRect.w, kResultRect.h, display.colors.WHITE);
 
         // Title chrome.
         const grey: i32 = 0xE6E6E6;
-        try display.fill_rect(465, 105, 164, 32, grey);
-        try display.fill_rect(465, 137, 5, 379, grey);
-        try display.fill_rect(470, 137, 351, 32, display.colors.BLACK);
+        try display.fillRect(465, 105, 164, 32, grey);
+        try display.fillRect(465, 137, 5, 379, grey);
+        try display.fillRect(470, 137, 351, 32, display.colors.BLACK);
 
-        try display.text.set_color(display.colors.BLACK, null);
+        try display.text.setColor(display.colors.BLACK, null);
         try display.text.draw("SCAN RESULT:", 478, 121);
 
         // Best SSID line (white on black bar).
-        try display.text.set_color(display.colors.WHITE, null);
+        try display.text.setColor(display.colors.WHITE, null);
         var best_buf: [96]u8 = undefined;
-        const best_ssid = best.ssid_slice();
+        const best_ssid = best.ssidSlice();
         const best_fmt = std.fmt.bufPrint(best_buf[0..], "Best: {s} ({d} dBm)", .{ best_ssid, best.rssi }) catch best_buf[0..0];
         const best_len = @min(best_fmt.len, best_buf.len - 1);
         best_buf[best_len] = 0;
-        try display.text.draw_cstr(best_buf[0..best_len :0], 478, 153);
+        try display.text.drawCstr(best_buf[0..best_len :0], 478, 153);
 
         // Wi-Fi list.
-        try display.text.set_color(display.colors.BLACK, null);
+        try display.text.setColor(display.colors.BLACK, null);
         const start_x: i32 = 478;
         const start_y: i32 = 197;
         const gap: i32 = 33;
@@ -141,17 +141,17 @@ pub const AppWifi = struct {
         const limit = @min(count, max_num);
         var i: usize = 0;
         while (i < limit) : (i += 1) {
-            const rec = net.wifi_scan_get_record(@intCast(i)) catch continue;
+            const rec = net.wifiScanGetRecord(@intCast(i)) catch continue;
 
             var line_buf: [96]u8 = undefined;
-            const ssid = rec.ssid_slice();
+            const ssid = rec.ssidSlice();
             const line = std.fmt.bufPrint(line_buf[0..], "{s} ({d} dBm)", .{ ssid, rec.rssi }) catch line_buf[0..0];
             const line_len = @min(line.len, line_buf.len - 1);
             line_buf[line_len] = 0;
-            try display.text.draw_cstr(line_buf[0..line_len :0], start_x, start_y + @as(i32, @intCast(i)) * gap);
+            try display.text.drawCstr(line_buf[0..line_len :0], start_x, start_y + @as(i32, @intCast(i)) * gap);
         }
 
-        try display.update_rect(kResultRect.x, kResultRect.y, kResultRect.w, kResultRect.h);
+        try display.updateRect(kResultRect.x, kResultRect.y, kResultRect.w, kResultRect.h);
 
         self.time_count_ms = now_ms;
     }

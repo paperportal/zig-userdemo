@@ -28,16 +28,16 @@ pub const AppPower = struct {
     current_usb_connected: bool = false,
 
     pub fn update(self: *AppPower, now_ms: i32, refresh: bool, tap: ?Tap, wifi_started_scanning: bool) Error!void {
-        try self.update_bat_voltage(now_ms, refresh);
-        try self.update_icon_chg(now_ms, refresh);
-        try self.update_shut_down_button(tap);
-        try self.check_low_battery_power_off(now_ms, wifi_started_scanning);
+        try self.updateBatVoltage(now_ms, refresh);
+        try self.updateIconChg(now_ms, refresh);
+        try self.updateShutDownButton(tap);
+        try self.checkLowBatteryPowerOff(now_ms, wifi_started_scanning);
     }
 
-    fn update_bat_voltage(self: *AppPower, now_ms: i32, refresh: bool) Error!void {
+    fn updateBatVoltage(self: *AppPower, now_ms: i32, refresh: bool) Error!void {
         if ((now_ms - self.last_bat_voltage_ms) <= 2000 and !refresh) return;
 
-        const mv = power.battery_voltage_mv() catch 0;
+        const mv = power.batteryVoltageMv() catch 0;
         const volts: f32 = @as(f32, @floatFromInt(mv)) / 1000.0;
 
         var buf: [32]u8 = undefined;
@@ -45,73 +45,73 @@ pub const AppPower = struct {
         const len = @min(s.len, buf.len - 1);
         buf[len] = 0;
 
-        try display.epd.set_mode(display.epd.FASTEST);
+        try display.epd.setMode(display.epd.FASTEST);
         try fonts.use(.Montserrat24);
-        try display.text.set_datum(.middle_center);
-        try display.text.set_color(display.colors.BLACK, display.colors.WHITE);
-        try display.text.draw_cstr(buf[0..len :0], kVoltageCenterX, kVoltageCenterY);
+        try display.text.setDatum(.middle_center);
+        try display.text.setColor(display.colors.BLACK, display.colors.WHITE);
+        try display.text.drawCstr(buf[0..len :0], kVoltageCenterX, kVoltageCenterY);
 
-        const text_w = display.text.text_width(buf[0..len :0]) catch 0;
-        const text_h = display.text.font_height();
+        const text_w = display.text.textWidth(buf[0..len :0]) catch 0;
+        const text_h = display.text.fontHeight();
         const rx = kVoltageCenterX - @divTrunc(text_w, 2) - 2;
         const ry = kVoltageCenterY - @divTrunc(text_h, 2) - 2;
         const rw = text_w + 4;
         const rh = text_h + 4;
 
         if (rw > 0 and rh > 0) {
-            try display.update_rect(rx, ry, rw, rh);
+            try display.updateRect(rx, ry, rw, rh);
         }
 
         self.last_bat_voltage_ms = now_ms;
     }
 
-    fn update_icon_chg(self: *AppPower, now_ms: i32, refresh: bool) Error!void {
+    fn updateIconChg(self: *AppPower, now_ms: i32, refresh: bool) Error!void {
         if ((now_ms - self.last_icon_chg_ms) <= 100 and !refresh) return;
 
-        const usb_connected = power.is_usb_connected() catch false;
+        const usb_connected = power.isUsbConnected() catch false;
         if (usb_connected != self.current_usb_connected or refresh) {
             self.current_usb_connected = usb_connected;
 
-            try display.epd.set_mode(display.epd.QUALITY);
+            try display.epd.setMode(display.epd.QUALITY);
             if (usb_connected) {
-                try display.image.draw_png(kChargeIconX, kChargeIconY, assets.img_icon_chg_png);
+                try display.image.drawPng(kChargeIconX, kChargeIconY, assets.img_icon_chg_png);
             } else {
-                try display.fill_rect(kChargeIconX, kChargeIconY, 50, 50, display.colors.WHITE);
+                try display.fillRect(kChargeIconX, kChargeIconY, 50, 50, display.colors.WHITE);
             }
-            try display.update_rect(kChargeIconX, kChargeIconY, 50, 50);
+            try display.updateRect(kChargeIconX, kChargeIconY, 50, 50);
         }
 
         self.last_icon_chg_ms = now_ms;
     }
 
-    fn update_shut_down_button(_: *AppPower, tap: ?Tap) Error!void {
+    fn updateShutDownButton(_: *AppPower, tap: ?Tap) Error!void {
         if (tap) |t| {
-            if (!kShutdownButton.contains_click(t.x, t.y)) return;
+            if (!kShutdownButton.containsClick(t.x, t.y)) return;
 
             _ = speaker.tone(4000.0, 100) catch {};
 
-            try display.epd.set_mode(display.epd.QUALITY);
-            try display.image.draw_png(0, 0, assets.img_logo_png);
+            try display.epd.setMode(display.epd.QUALITY);
+            try display.image.drawPng(0, 0, assets.img_logo_png);
             try display.update();
-            core.time.delay_ms(2000);
+            core.time.delayMs(2000);
 
             try power.off();
         }
     }
 
-    fn check_low_battery_power_off(self: *AppPower, now_ms: i32, wifi_started_scanning: bool) Error!void {
+    fn checkLowBatteryPowerOff(self: *AppPower, now_ms: i32, wifi_started_scanning: bool) Error!void {
         if (!wifi_started_scanning) return;
         if ((now_ms - self.last_low_bat_ms) <= 2000) return;
 
-        const usb_connected = power.is_usb_connected() catch false;
-        const mv = power.battery_voltage_mv() catch 0;
+        const usb_connected = power.isUsbConnected() catch false;
+        const mv = power.batteryVoltageMv() catch 0;
         const volts: f32 = @as(f32, @floatFromInt(mv)) / 1000.0;
 
         if (!usb_connected and volts < 3.8) {
-            try display.epd.set_mode(display.epd.QUALITY);
-            try display.image.draw_png(0, 0, assets.img_logo_png);
+            try display.epd.setMode(display.epd.QUALITY);
+            try display.image.drawPng(0, 0, assets.img_logo_png);
             try display.update();
-            core.time.delay_ms(2000);
+            core.time.delayMs(2000);
             try power.off();
         }
 

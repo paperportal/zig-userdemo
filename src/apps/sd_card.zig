@@ -24,12 +24,12 @@ const SdResult = struct {
     }
 };
 
-fn sd_card_test() SdResult {
-    if (!fs.is_mounted()) {
+fn sdCardTest() SdResult {
+    if (!fs.isMounted()) {
         fs.mount() catch return SdResult{};
     }
 
-    if (!fs.is_mounted()) return SdResult{};
+    if (!fs.isMounted()) return SdResult{};
 
     var result = SdResult{ .mounted = true };
 
@@ -45,7 +45,7 @@ fn sd_card_test() SdResult {
         result.write_ok = (n == msg.len);
     }
 
-    const info = fs.card_info() catch return result;
+    const info = fs.cardInfo() catch return result;
     result.mounted = info.mounted;
     result.card_type = info.card_type;
     result.capacity_bytes = info.capacity_bytes;
@@ -54,11 +54,11 @@ fn sd_card_test() SdResult {
 }
 
 fn draw(result: SdResult) Error!void {
-    try display.epd.set_mode(display.epd.TEXT);
+    try display.epd.setMode(display.epd.TEXT);
 
-    try display.fill_rect(kPanelRect.x, kPanelRect.y, kPanelRect.w, kPanelRect.h, display.colors.WHITE);
-    try display.text.set_datum(.middle_left);
-    try display.text.set_color(display.colors.BLACK, null);
+    try display.fillRect(kPanelRect.x, kPanelRect.y, kPanelRect.w, kPanelRect.h, display.colors.WHITE);
+    try display.text.setDatum(.middle_left);
+    try display.text.setColor(display.colors.BLACK, null);
 
     if (result.mounted) {
         try fonts.use(.Montserrat24);
@@ -72,7 +72,7 @@ fn draw(result: SdResult) Error!void {
         };
         const size_len = @min(size_slice.len, size_buf.len - 1);
         size_buf[size_len] = 0;
-        try display.text.draw_cstr(size_buf[0..size_len :0], 267, 197);
+        try display.text.drawCstr(size_buf[0..size_len :0], 267, 197);
 
         try fonts.use(.Montserrat18);
 
@@ -87,7 +87,7 @@ fn draw(result: SdResult) Error!void {
         const type_len = @min(type_str.len, type_buf.len - 1);
         std.mem.copyForwards(u8, type_buf[0..type_len], type_str[0..type_len]);
         type_buf[type_len] = 0;
-        try display.text.draw_cstr(type_buf[0..type_len :0], 267, 234);
+        try display.text.drawCstr(type_buf[0..type_len :0], 267, 234);
 
         var name_buf: [32]u8 = undefined;
         const nul = std.mem.indexOfScalar(u8, result.name[0..], 0) orelse result.name.len;
@@ -95,13 +95,13 @@ fn draw(result: SdResult) Error!void {
         const name_fmt = std.fmt.bufPrint(name_buf[0..], "Name: {s}", .{name_slice}) catch name_buf[0..0];
         const name_len = @min(name_fmt.len, name_buf.len - 1);
         name_buf[name_len] = 0;
-        try display.text.draw_cstr(name_buf[0..name_len :0], 267, 267);
+        try display.text.drawCstr(name_buf[0..name_len :0], 267, 267);
     } else {
         try fonts.use(.Montserrat24);
         try display.text.draw("Not Found", 271, 231);
     }
 
-    try display.update_rect(kPanelRect.x, kPanelRect.y, kPanelRect.w, kPanelRect.h);
+    try display.updateRect(kPanelRect.x, kPanelRect.y, kPanelRect.w, kPanelRect.h);
 }
 
 pub const AppSdCard = struct {
@@ -112,7 +112,7 @@ pub const AppSdCard = struct {
     pub fn update(self: *AppSdCard, now_ms: i32, refresh: bool) Error!void {
         if ((now_ms - self.last_update_ms) <= 2000 and !refresh) return;
 
-        const result = sd_card_test();
+        const result = sdCardTest();
 
         if (!refresh and self.has_last and SdResult.eql(result, self.last_result)) {
             self.last_update_ms = now_ms;
